@@ -1,0 +1,183 @@
+@baseUrl = http://localhost:3000/api
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+### Healthcheck de la API
+GET http://localhost:3000/
+Accept: application/json
+
+### ==========================================================
+### AUTENTICACION Y USUARIOS
+### ==========================================================
+
+### 1. Registrar un nuevo usuario
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Uriel Rivero",
+  "email": "uriel@example.com",
+  "contrasena": "claveSegura123"
+}
+
+### 2. Iniciar sesion (Login)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "uriel@example.com",
+  "contrasena": "claveSegura123"
+}
+
+### 3. Obtener perfil de usuario autenticado
+GET {{baseUrl}}/auth/perfil
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+
+### ==========================================================
+### VEHICULOS (Requiere autenticacion)
+### ==========================================================
+
+### 4. Obtener todos los vehiculos
+GET {{baseUrl}}/vehiculos
+Authorization: Bearer {{authToken}}
+
+### 5. Obtener vehiculo por ID
+GET {{baseUrl}}/vehiculos/1
+Authorization: Bearer {{authToken}}
+
+### 6. Crear un vehiculo
+POST {{baseUrl}}/vehiculos
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "marca": "Mercedes-Benz",
+  "modelo": "Actros 2045",
+  "patente": "AE123CD",
+  "anio": 2022,
+  "capacidad_carga": 18000.50
+}
+
+### 7. Actualizar un vehiculo
+PUT {{baseUrl}}/vehiculos/1
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "marca": "Mercedes-Benz",
+  "modelo": "Actros 2045 Evolution",
+  "patente": "AE123CD",
+  "anio": 2023,
+  "capacidad_carga": 19500.00
+}
+
+### 8. Eliminar un vehiculo
+DELETE {{baseUrl}}/vehiculos/1
+Authorization: Bearer {{authToken}}
+
+
+### ==========================================================
+### CONDUCTORES (Requiere autenticacion)
+### ==========================================================
+
+### 9. Obtener todos los conductores
+GET {{baseUrl}}/conductores
+Authorization: Bearer {{authToken}}
+
+### 10. Obtener conductor por ID
+GET {{baseUrl}}/conductores/1
+Authorization: Bearer {{authToken}}
+
+### 11. Registrar un conductor
+POST {{baseUrl}}/conductores
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "nombre": "Carlos",
+  "apellido": "Gomez",
+  "numero_documento": "34567890",
+  "numero_licencia": "LIC-B2-9988",
+  "fecha_alta_licencia": "2020-03-15",
+  "fecha_vencimiento_licencia": "2028-03-15"
+}
+
+### 12. Actualizar un conductor
+PUT {{baseUrl}}/conductores/1
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "nombre": "Carlos Alberto",
+  "apellido": "Gomez",
+  "numero_documento": "34567890",
+  "numero_licencia": "LIC-B2-9988",
+  "fecha_alta_licencia": "2020-03-15",
+  "fecha_vencimiento_licencia": "2029-03-15"
+}
+
+### 13. Eliminar un conductor
+DELETE {{baseUrl}}/conductores/1
+Authorization: Bearer {{authToken}}
+
+
+### ==========================================================
+### VIAJES (Requiere autenticacion)
+### ==========================================================
+
+### 14. Obtener todos los viajes
+GET {{baseUrl}}/viajes
+Authorization: Bearer {{authToken}}
+
+### 15. Obtener un viaje por ID
+GET {{baseUrl}}/viajes/1
+Authorization: Bearer {{authToken}}
+
+### 16. Registrar un viaje asociando vehiculo y conductor
+POST {{baseUrl}}/viajes
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "vehiculo_id": 1,
+  "conductor_id": 1,
+  "fecha_salida": "2026-11-15T08:00:00",
+  "fecha_llegada": "2026-11-15T18:30:00",
+  "origen": "La Rioja",
+  "destino": "Cordoba",
+  "kilometros": 435.5,
+  "observaciones": "Viaje completado sin novedades en ruta"
+}
+
+### 17. Actualizar un viaje
+PUT {{baseUrl}}/viajes/1
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "vehiculo_id": 1,
+  "conductor_id": 1,
+  "fecha_salida": "2026-11-15T08:00:00",
+  "fecha_llegada": "2026-11-15T19:00:00",
+  "origen": "La Rioja",
+  "destino": "Cordoba Capital",
+  "kilometros": 440.0,
+  "observaciones": "Demora de 30 min por control vehicular"
+}
+
+### 18. Eliminar un viaje
+DELETE {{baseUrl}}/viajes/1
+Authorization: Bearer {{authToken}}
+
+### 19. Consulta de historial de viajes por vehiculo
+GET {{baseUrl}}/viajes/historial/vehiculo/1
+Authorization: Bearer {{authToken}}
+
+### 20. Consulta de historial de viajes por conductor
+GET {{baseUrl}}/viajes/historial/conductor/1
+Authorization: Bearer {{authToken}}
+
+### 21. Calculo total de kilometros por conductor y vehiculo
+GET {{baseUrl}}/viajes/totales-kilometros
+Authorization: Bearer {{authToken}}
