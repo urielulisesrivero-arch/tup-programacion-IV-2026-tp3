@@ -109,8 +109,25 @@ export default function ViajesList() {
       setError('La fecha y hora de salida es obligatoria.');
       return;
     }
-    if (!formData.origen.trim() || !formData.destino.trim()) {
-      setError('Origen y destino son obligatorios.');
+
+    const origenLimpio = formData.origen.trim();
+    const destinoLimpio = formData.destino.trim();
+
+    if (!origenLimpio || origenLimpio.length < 3) {
+      setError('El origen es obligatorio y debe tener al menos 3 caracteres.');
+      return;
+    }
+    if (/^\d+$/.test(origenLimpio)) {
+      setError('El origen no puede ser únicamente números. Indicá una ciudad o localidad válida.');
+      return;
+    }
+
+    if (!destinoLimpio || destinoLimpio.length < 3) {
+      setError('El destino es obligatorio y debe tener al menos 3 caracteres.');
+      return;
+    }
+    if (/^\d+$/.test(destinoLimpio)) {
+      setError('El destino no puede ser únicamente números. Indicá una ciudad o localidad válida.');
       return;
     }
 
@@ -128,6 +145,8 @@ export default function ViajesList() {
     try {
       const payload = {
         ...formData,
+        origen: origenLimpio,
+        destino: destinoLimpio,
         kilometros: kmNum
       };
 
@@ -336,7 +355,7 @@ export default function ViajesList() {
                 </div>
 
                 <div className="form-group">
-                  <label>Origen *</label>
+                  <label>Origen * (Localidad / Ciudad)</label>
                   <input
                     type="text"
                     className="form-control"
@@ -348,7 +367,7 @@ export default function ViajesList() {
                 </div>
 
                 <div className="form-group">
-                  <label>Destino *</label>
+                  <label>Destino * (Localidad / Ciudad)</label>
                   <input
                     type="text"
                     className="form-control"

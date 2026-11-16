@@ -84,9 +84,16 @@ export default function ConductoresList() {
     e.preventDefault();
     setError('');
 
-    // Validaciones estrictas de frontend
-    if (!formData.nombre.trim() || !formData.apellido.trim()) {
-      setError('Nombre y apellido son campos obligatorios.');
+    const soloLetrasRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$/;
+
+    // Validación: Nombre y Apellido sin números
+    if (!formData.nombre.trim() || !soloLetrasRegex.test(formData.nombre.trim())) {
+      setError('El nombre solo debe contener letras (no se permiten números ni caracteres especiales).');
+      return;
+    }
+
+    if (!formData.apellido.trim() || !soloLetrasRegex.test(formData.apellido.trim())) {
+      setError('El apellido solo debe contener letras (no se permiten números ni caracteres especiales).');
       return;
     }
 
@@ -112,11 +119,20 @@ export default function ConductoresList() {
     }
 
     try {
+      const payload = {
+        nombre: formData.nombre.trim(),
+        apellido: formData.apellido.trim(),
+        numero_documento: dniLimpio,
+        numero_licencia: formData.numero_licencia.trim().toUpperCase(),
+        fecha_alta_licencia: formData.fecha_alta_licencia,
+        fecha_vencimiento_licencia: formData.fecha_vencimiento_licencia
+      };
+
       if (editingId) {
-        await conductorService.update(editingId, { ...formData, numero_documento: dniLimpio });
+        await conductorService.update(editingId, payload);
         setSuccess('Conductor actualizado exitosamente.');
       } else {
-        await conductorService.create({ ...formData, numero_documento: dniLimpio });
+        await conductorService.create(payload);
         setSuccess('Conductor registrado exitosamente.');
       }
       setShowModal(false);
@@ -126,7 +142,7 @@ export default function ConductoresList() {
     }
   };
 
-  // Filtrado reactivo por nombre, apellido o DNI
+  // Filtrado reactivo por nombre, apellido, DNI o licencia
   const conductoresFiltrados = conductores.filter((c) => {
     if (!busqueda.trim()) return true;
     const term = busqueda.toLowerCase().trim();
@@ -227,24 +243,32 @@ export default function ConductoresList() {
             <form onSubmit={handleSubmit}>
               <div className="form-grid">
                 <div className="form-group">
-                  <label>Nombre *</label>
+                  <label>Nombre * (solo letras)</label>
                   <input
                     type="text"
                     className="form-control"
                     placeholder="Ej. Juan"
                     value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                    onChange={(e) => {
+                      // Filtrar números si intentan tipearlos
+                      const sinNumeros = e.target.value.replace(/[0-9]/g, '');
+                      setFormData({ ...formData, nombre: sinNumeros });
+                    }}
                     required
                   />
                 </div>
                 <div className="form-group">
-                  <label>Apellido *</label>
+                  <label>Apellido * (solo letras)</label>
                   <input
                     type="text"
                     className="form-control"
                     placeholder="Ej. Pérez"
                     value={formData.apellido}
-                    onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                    onChange={(e) => {
+                      // Filtrar números si intentan tipearlos
+                      const sinNumeros = e.target.value.replace(/[0-9]/g, '');
+                      setFormData({ ...formData, apellido: sinNumeros });
+                    }}
                     required
                   />
                 </div>
