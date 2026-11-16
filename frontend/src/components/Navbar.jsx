@@ -6,7 +6,7 @@ export default function Navbar({ usuario, onLogout, activeTab, onSelectTab }) {
       <div className="navbar">
         <div className="navbar-brand">
           <span>🚚</span>
-          <span>Ruta Clara</span>
+          <span>Transporte Millonario</span>
         </div>
         <div className="navbar-user">
           {usuario ? (

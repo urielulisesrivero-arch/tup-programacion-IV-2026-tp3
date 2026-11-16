@@ -8,7 +8,7 @@ export default function HomePublica({ usuario, onGoToLogin, onGoToSection }) {
           Tu flota, tus viajes y tus números en un solo lugar
         </h1>
         <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: '700px', margin: '0 auto 1.5rem auto' }}>
-          Ruta Clara reúne todo lo que necesitás para organizar el día a día de una empresa de transporte:
+          Transporte Millonario reúne todo lo que necesitás para organizar el día a día de una empresa de transporte:
           vehículos, conductores y viajes, con el historial de kilómetros siempre a mano.
         </p>
 
