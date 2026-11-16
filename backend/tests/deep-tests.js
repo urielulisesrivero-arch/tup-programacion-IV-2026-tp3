@@ -17,6 +17,7 @@ require('dotenv').config();
 
 const mysql = require('mysql2/promise');
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 
 const TEST_DB = 'tp3_transporte_test';
 
@@ -135,6 +136,13 @@ async function ejecutarPruebas(app, pool) {
     assert.ok(res.body.estado === 'online');
   });
 
+  await test('la API responde con cabeceras CORS y JSON', async () => {
+    const res = await request(app).get('/').set('Origin', 'http://localhost:5173');
+    assertEstado(res, 200, 'CORS:');
+    assert.strictEqual(res.headers['access-control-allow-origin'], '*');
+    assert.match(res.headers['content-type'], /application\/json/);
+  });
+
   await test('POST /api/auth/register crea un usuario sin exponer la contrasena', async () => {
     const res = await request(app).post('/api/auth/register').send(usuarioBase);
     assertEstado(res, 201, 'registro:');
@@ -204,6 +212,53 @@ async function ejecutarPruebas(app, pool) {
     assert.strictEqual(res.body.usuario.email, usuarioBase.email);
   });
 
+  await test('la contrasena se guarda encriptada con bcrypt en la base de datos', async () => {
+    const [rows] = await pool.query('SELECT contrasena FROM usuarios WHERE email = ?', [usuarioBase.email]);
+    assert.strictEqual(rows.length, 1);
+    const hash = rows[0].contrasena;
+    assert.ok(hash.startsWith('$2'), `Se esperaba un hash bcrypt y se obtuvo: ${hash}`);
+    assert.strictEqual(hash.length, 60);
+    assert.notStrictEqual(hash, usuarioBase.contrasena);
+  });
+
+  await test('el token JWT expira en 4 horas', async () => {
+    const payload = jwt.decode(token);
+    assert.ok(payload.exp && payload.iat);
+    assert.strictEqual(payload.exp - payload.iat, 4 * 60 * 60);
+  });
+
+  await test('el login no devuelve la contrasena ni el hash', async () => {
+    const res = await request(app).post('/api/auth/login').send({
+      email: usuarioBase.email,
+      contrasena: usuarioBase.contrasena
+    });
+    assertEstado(res, 200, 'login sin contrasena:');
+    assert.strictEqual(res.body.usuario.contrasena, undefined);
+    assert.strictEqual(res.body.usuario.password, undefined);
+    assert.ok(!JSON.stringify(res.body).includes('$2'));
+  });
+
+  await test('rechaza un token firmado con otro secreto', async () => {
+    const falso = jwt.sign({ id: 1 }, 'otro-secreto-distinto', { expiresIn: '1h' });
+    const res = await request(app).get('/api/auth/perfil').set('Authorization', `Bearer ${falso}`);
+    assertEstado(res, 401, 'token con otro secreto:');
+  });
+
+  await test('rechaza un token vencido', async () => {
+    const secret = process.env.JWT_SECRET || 'super_secreto_jwt_tp3_programacion_iv';
+    const vencido = jwt.sign({ id: 1 }, secret, { expiresIn: -60 });
+    const res = await request(app).get('/api/auth/perfil').set('Authorization', `Bearer ${vencido}`);
+    assertEstado(res, 401, 'token vencido:');
+  });
+
+  await test('el login no se rompe ante un intento de inyeccion SQL', async () => {
+    const res = await request(app).post('/api/auth/login').send({
+      email: "' OR 1=1 --",
+      contrasena: "' OR '1'='1"
+    });
+    assertEstado(res, 400, 'inyeccion SQL en login:');
+  });
+
   console.log('\n[Vehiculos]');
 
   await test('las rutas de vehiculos exigen autenticacion', async () => {
@@ -266,6 +321,49 @@ async function ejecutarPruebas(app, pool) {
       .get(`/api/vehiculos?marca=${'x'.repeat(120)}`)
       .set('Authorization', `Bearer ${token}`);
     assertEstado(res, 400, 'filtro marca invalido:');
+  });
+
+  await test('POST /api/vehiculos acepta los limites de año y capacidad', async () => {
+    const res = await request(app)
+      .post('/api/vehiculos')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ...vehiculoBase, patente: 'LIM195', anio: 1950, capacidad_carga: 0.01 });
+    assertEstado(res, 201, 'limites inferiores:');
+
+    const res2 = await request(app)
+      .post('/api/vehiculos')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ...vehiculoBase, patente: 'LIM203', anio: 2030, capacidad_carga: 99999 });
+    assertEstado(res2, 201, 'limites superiores:');
+
+    for (const id of [res.body.vehiculo.id, res2.body.vehiculo.id]) {
+      await request(app).delete(`/api/vehiculos/${id}`).set('Authorization', `Bearer ${token}`);
+    }
+  });
+
+  await test('POST /api/vehiculos rechaza años fuera de rango', async () => {
+    const res = await request(app)
+      .post('/api/vehiculos')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ...vehiculoBase, patente: 'FUERA1', anio: 1949 });
+    assertEstado(res, 400, 'año 1949:');
+
+    const res2 = await request(app)
+      .post('/api/vehiculos')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ...vehiculoBase, patente: 'FUERA2', anio: 2031 });
+    assertEstado(res2, 400, 'año 2031:');
+  });
+
+  await test('los filtros no permiten inyeccion SQL', async () => {
+    const respuestaNormal = await request(app)
+      .get('/api/vehiculos')
+      .set('Authorization', `Bearer ${token}`);
+    const intento = await request(app)
+      .get("/api/vehiculos?marca=' OR 1=1 --")
+      .set('Authorization', `Bearer ${token}`);
+    assertEstado(intento, 200, 'inyeccion en filtro:');
+    assert.ok(intento.body.length < respuestaNormal.body.length);
   });
 
   await test('GET /api/vehiculos/:id devuelve el vehiculo creado', async () => {
@@ -361,6 +459,15 @@ async function ejecutarPruebas(app, pool) {
     assertEstado(res, 400, 'dni corto:');
   });
 
+  await test('POST /api/conductores rechaza una licencia repetida', async () => {
+    const res = await request(app)
+      .post('/api/conductores')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ...conductorBase, nombre: 'Sofia', numero_documento: '30999999' });
+    assertEstado(res, 400, 'licencia repetida:');
+    assert.match(res.body.error, /licencia/i);
+  });
+
   await test('GET /api/conductores lista los conductores', async () => {
     const res = await request(app).get('/api/conductores').set('Authorization', `Bearer ${token}`);
     assertEstado(res, 200, 'listar conductores:');
@@ -398,6 +505,37 @@ async function ejecutarPruebas(app, pool) {
       .send({ ...conductorBase, apellido: 'Perez Gonzalez' });
     assertEstado(res, 200, 'actualizar conductor:');
     assert.strictEqual(res.body.conductor.apellido, 'Perez Gonzalez');
+  });
+
+  await test('GET /api/conductores/:id valida que el id sea numerico', async () => {
+    const res = await request(app)
+      .get('/api/conductores/abc')
+      .set('Authorization', `Bearer ${token}`);
+    assertEstado(res, 400, 'id conductor invalido:');
+  });
+
+  await test('PUT /api/conductores/:id impide usar el documento de otro conductor', async () => {
+    const otro = await request(app)
+      .post('/api/conductores')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        ...conductorBase,
+        nombre: 'Laura',
+        apellido: 'Diaz',
+        numero_documento: '27888999',
+        numero_licencia: 'LIC-55555'
+      });
+    assertEstado(otro, 201, 'conductor auxiliar:');
+
+    const res = await request(app)
+      .put(`/api/conductores/${otro.body.conductor.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ...conductorBase, numero_documento: conductorBase.numero_documento, numero_licencia: 'LIC-55555' });
+    assertEstado(res, 400, 'documento ocupado:');
+
+    await request(app)
+      .delete(`/api/conductores/${otro.body.conductor.id}`)
+      .set('Authorization', `Bearer ${token}`);
   });
 
   console.log('\n[Viajes]');
@@ -449,6 +587,31 @@ async function ejecutarPruebas(app, pool) {
     assertEstado(res, 201, 'crear viaje:');
     viajeId = res.body.viaje.id;
     assert.ok(viajeId > 0);
+  });
+
+  await test('POST /api/viajes permite un viaje en transito sin fecha de llegada', async () => {
+    const res = await request(app)
+      .post('/api/viajes')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        vehiculo_id: vehiculoId,
+        conductor_id: conductorId,
+        fecha_salida: '2026-03-01 20:00:00',
+        origen: 'Cordoba',
+        destino: 'Rosario',
+        kilometros: 300
+      });
+    assertEstado(res, 201, 'viaje en transito:');
+    assert.strictEqual(res.body.viaje.fecha_llegada, null);
+
+    await request(app)
+      .delete(`/api/viajes/${res.body.viaje.id}`)
+      .set('Authorization', `Bearer ${token}`);
+  });
+
+  await test('las rutas de viajes exigen autenticacion', async () => {
+    const res = await request(app).get('/api/viajes');
+    assertEstado(res, 401, 'viajes sin token:');
   });
 
   await test('POST /api/viajes rechaza kilometros no positivos', async () => {
@@ -519,6 +682,23 @@ async function ejecutarPruebas(app, pool) {
       .set('Authorization', `Bearer ${token}`);
     assertEstado(res, 200, 'filtrar viajes:');
     assert.ok(res.body.every((v) => v.vehiculo_id === vehiculoId));
+  });
+
+  await test('GET /api/viajes?conductor_id= filtra por conductor', async () => {
+    const res = await request(app)
+      .get(`/api/viajes?conductor_id=${conductorId}`)
+      .set('Authorization', `Bearer ${token}`);
+    assertEstado(res, 200, 'filtrar por conductor:');
+    assert.ok(res.body.every((v) => v.conductor_id === conductorId));
+    assert.ok(res.body.some((v) => v.id === viajeId));
+  });
+
+  await test('GET /api/viajes aplica ambos filtros al mismo tiempo', async () => {
+    const res = await request(app)
+      .get(`/api/viajes?vehiculo_id=${vehiculoId}&conductor_id=${conductorId}`)
+      .set('Authorization', `Bearer ${token}`);
+    assertEstado(res, 200, 'filtros combinados:');
+    assert.ok(res.body.every((v) => v.vehiculo_id === vehiculoId && v.conductor_id === conductorId));
   });
 
   await test('GET /api/viajes/historial/vehiculo/:id calcula los totales', async () => {
@@ -596,6 +776,53 @@ async function ejecutarPruebas(app, pool) {
       .delete(`/api/viajes/${viajeId}`)
       .set('Authorization', `Bearer ${token}`);
     assertEstado(repetido, 404, 'eliminar viaje inexistente:');
+  });
+
+  await test('al eliminar un vehiculo se eliminan sus viajes por la relacion en MySQL', async () => {
+    const veh = await request(app)
+      .post('/api/vehiculos')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ...vehiculoBase, patente: 'CASC111' });
+    assertEstado(veh, 201, 'vehiculo para cascada:');
+
+    const cond = await request(app)
+      .post('/api/conductores')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        ...conductorBase,
+        nombre: 'Mario',
+        apellido: 'Suarez',
+        numero_documento: '25666777',
+        numero_licencia: 'LIC-77777'
+      });
+    assertEstado(cond, 201, 'conductor para cascada:');
+
+    const viaje = await request(app)
+      .post('/api/viajes')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        vehiculo_id: veh.body.vehiculo.id,
+        conductor_id: cond.body.conductor.id,
+        fecha_salida: '2026-04-01 08:00:00',
+        origen: 'Chilecito',
+        destino: 'Aimogasta',
+        kilometros: 150
+      });
+    assertEstado(viaje, 201, 'viaje para cascada:');
+
+    const borrado = await request(app)
+      .delete(`/api/vehiculos/${veh.body.vehiculo.id}`)
+      .set('Authorization', `Bearer ${token}`);
+    assertEstado(borrado, 200, 'borrar vehiculo con viajes:');
+
+    const viajeBorrado = await request(app)
+      .get(`/api/viajes/${viaje.body.viaje.id}`)
+      .set('Authorization', `Bearer ${token}`);
+    assertEstado(viajeBorrado, 404, 'viaje eliminado en cascada:');
+
+    await request(app)
+      .delete(`/api/conductores/${cond.body.conductor.id}`)
+      .set('Authorization', `Bearer ${token}`);
   });
 
   await test('DELETE /api/conductores/:id elimina el conductor', async () => {
