@@ -251,6 +251,30 @@ async function ejecutarPruebas(app, pool) {
     assertEstado(res, 401, 'token vencido:');
   });
 
+  await test('responde 403 si el token es valido pero la cuenta ya no existe', async () => {
+    const email = 'cuenta.borrada@example.com';
+
+    const registro = await request(app).post('/api/auth/register').send({
+      nombre: 'Cuenta Borrada',
+      email,
+      contrasena: 'secreto123'
+    });
+    assertEstado(registro, 201, 'registro cuenta temporal:');
+
+    const login = await request(app).post('/api/auth/login').send({
+      email,
+      contrasena: 'secreto123'
+    });
+    assertEstado(login, 200, 'login cuenta temporal:');
+
+    await pool.query('DELETE FROM usuarios WHERE email = ?', [email]);
+
+    const res = await request(app)
+      .get('/api/auth/perfil')
+      .set('Authorization', `Bearer ${login.body.token}`);
+    assertEstado(res, 403, 'token de cuenta eliminada:');
+  });
+
   await test('el login no se rompe ante un intento de inyeccion SQL', async () => {
     const res = await request(app).post('/api/auth/login').send({
       email: "' OR 1=1 --",

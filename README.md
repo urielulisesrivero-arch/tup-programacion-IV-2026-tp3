@@ -125,7 +125,7 @@ Dentro de `backend/api.http` contás con todas las peticiones preparadas para pr
 ---
 
 ## ✅ Pruebas Automatizadas
-El backend incluye una suite de pruebas de integración con **Supertest** que recorre los flujos principales de la API: registro y login, rutas protegidas con JWT, CRUD de vehículos y conductores, registro de viajes, historial y cálculo de kilómetros totales, además de los casos de validación y de error (400, 401 y 404).
+El backend incluye una suite de pruebas de integración con **Supertest** que recorre los flujos principales de la API: registro y login, rutas protegidas con JWT, CRUD de vehículos y conductores, registro de viajes, historial y cálculo de kilómetros totales, además de los casos de validación y de error (400, 401, 403 y 404).
 
 Para ejecutarlas:
 ```bash
@@ -141,5 +141,5 @@ Las pruebas crean una base de datos temporal (`tp3_transporte_test`), ejecutan e
 - **Contraseñas**: Almacenadas con hash criptográfico bcrypt (cost factor 10). Las respuestas de la API nunca devuelven la contraseña ni en texto plano ni en hash.
 - **Tokens JWT**: Duración de 4 horas (`JWT_EXPIRES_IN=4h`).
 - **Control de Acceso**: Middleware de Passport para rechazar con HTTP 401 cualquier intento no autenticado a los recursos CRUD.
-- **Respuestas HTTP**: Control granular con códigos 200 (OK), 201 (Created), 400 (Bad Request / errores de validación o datos duplicados), 401 (Unauthorized), 404 (Not Found) y 500 (Internal Server Error). El sistema no utiliza 403 (Forbidden) ni 409 (Conflict) porque no maneja roles de usuario y los conflictos por datos duplicados se informan con 400.
+- **Respuestas HTTP**: Control granular con códigos 200 (OK), 201 (Created), 400 (Bad Request / errores de validación o datos duplicados), 401 (Unauthorized), 403 (Forbidden / token válido de una cuenta eliminada), 404 (Not Found) y 500 (Internal Server Error). No se utiliza 409 (Conflict) porque los datos duplicados se informan con 400.
 - **Validaciones en Frontend**: Campos requeridos, tipos de datos numéricos positivos y validación de formatos antes del despacho de peticiones.

@@ -19,7 +19,8 @@ passport.use(
       if (rows.length > 0) {
         return done(null, rows[0]);
       }
-      return done(null, false);
+      // Token valido pero la cuenta ya no existe: el acceso queda prohibido (403)
+      return done(null, false, { message: 'La cuenta asociada al token ya no existe.' });
     } catch (error) {
       return done(error, false);
     }
