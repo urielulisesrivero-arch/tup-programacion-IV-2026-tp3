@@ -12,6 +12,7 @@ export default function ViajesList() {
   // Filtros de visualización
   const [filtroVehiculo, setFiltroVehiculo] = useState('');
   const [filtroConductor, setFiltroConductor] = useState('');
+  const [busquedaRuta, setBusquedaRuta] = useState('');
 
   // Modal / Form state
   const [showModal, setShowModal] = useState(false);
@@ -112,17 +113,29 @@ export default function ViajesList() {
       setError('Origen y destino son obligatorios.');
       return;
     }
-    if (!formData.kilometros || Number(formData.kilometros) <= 0) {
-      setError('Los kilómetros recorridos deben ser un número mayor a 0.');
+
+    const kmNum = Number(formData.kilometros);
+    if (isNaN(kmNum) || kmNum <= 0) {
+      setError('Los kilómetros recorridos deben ser un número positivo mayor a 0 (no se permiten números negativos).');
+      return;
+    }
+
+    if (formData.fecha_llegada && new Date(formData.fecha_llegada) < new Date(formData.fecha_salida)) {
+      setError('La fecha de llegada no puede ser anterior a la fecha de salida.');
       return;
     }
 
     try {
+      const payload = {
+        ...formData,
+        kilometros: kmNum
+      };
+
       if (editingId) {
-        await viajeService.update(editingId, formData);
+        await viajeService.update(editingId, payload);
         setSuccess('Viaje actualizado exitosamente.');
       } else {
-        await viajeService.create(formData);
+        await viajeService.create(payload);
         setSuccess('Viaje registrado exitosamente.');
       }
       setShowModal(false);
@@ -140,6 +153,11 @@ export default function ViajesList() {
     if (filtroConductor && v.conductor_id.toString() !== filtroConductor.toString()) {
       return false;
     }
+    if (busquedaRuta.trim()) {
+      const term = busquedaRuta.toLowerCase().trim();
+      const ruta = `${v.origen} ${v.destino}`.toLowerCase();
+      if (!ruta.includes(term)) return false;
+    }
     return true;
   });
 
@@ -148,9 +166,9 @@ export default function ViajesList() {
       <div className="card">
         <div className="card-header">
           <div>
-            <h2 className="card-title">Carga y Registro de Viajes</h2>
+            <h2 className="card-title">Viajes Realizados</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.2rem' }}>
-              Asociación de vehículos, conductores y cálculo de recorridos
+              Seguimiento de rutas, distancias y asignación de unidades
             </p>
           </div>
           <button
@@ -158,7 +176,7 @@ export default function ViajesList() {
             onClick={handleOpenCreate}
             disabled={vehiculos.length === 0 || conductores.length === 0}
           >
-            + Cargar Viaje
+            + Registrar Viaje
           </button>
         </div>
 
@@ -196,6 +214,16 @@ export default function ViajesList() {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="form-group">
+            <label>Buscar por Origen / Destino:</label>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Ej. Córdoba, La Rioja..."
+              value={busquedaRuta}
+              onChange={(e) => setBusquedaRuta(e.target.value)}
+            />
           </div>
         </div>
 
@@ -353,14 +381,19 @@ export default function ViajesList() {
                 </div>
 
                 <div className="form-group full-width">
-                  <label>Kilómetros Recorridos *</label>
+                  <label>Kilómetros Recorridos * (número positivo)</label>
                   <input
                     type="number"
                     step="0.01"
+                    min="0.1"
                     className="form-control"
                     placeholder="Ej. 435.5"
                     value={formData.kilometros}
-                    onChange={(e) => setFormData({ ...formData, kilometros: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (Number(val) < 0) return;
+                      setFormData({ ...formData, kilometros: val });
+                    }}
                     required
                   />
                 </div>
@@ -369,7 +402,7 @@ export default function ViajesList() {
                   <label>Observaciones</label>
                   <textarea
                     className="form-control"
-                    placeholder="Detalles del viaje, condiciones de carga, novedades en ruta..."
+                    placeholder="Detalles del viaje, carga, paradas intermedias..."
                     value={formData.observaciones}
                     onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
                   />

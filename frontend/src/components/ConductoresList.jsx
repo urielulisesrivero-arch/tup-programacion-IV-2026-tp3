@@ -7,6 +7,9 @@ export default function ConductoresList() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Filtro de búsqueda
+  const [busqueda, setBusqueda] = useState('');
+
   // Modal / Form state
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -81,26 +84,39 @@ export default function ConductoresList() {
     e.preventDefault();
     setError('');
 
-    // Validaciones
+    // Validaciones estrictas de frontend
     if (!formData.nombre.trim() || !formData.apellido.trim()) {
-      setError('Nombre y apellido son obligatorios.');
+      setError('Nombre y apellido son campos obligatorios.');
       return;
     }
-    if (!formData.numero_documento.trim() || !formData.numero_licencia.trim()) {
-      setError('Documento y número de licencia son obligatorios.');
+
+    const dniLimpio = formData.numero_documento.trim();
+    if (!/^\d{7,8}$/.test(dniLimpio)) {
+      setError('El DNI debe contener únicamente entre 7 y 8 números (sin puntos, letras ni signos negativos).');
       return;
     }
+
+    if (!formData.numero_licencia.trim()) {
+      setError('El número de licencia es obligatorio.');
+      return;
+    }
+
     if (!formData.fecha_alta_licencia || !formData.fecha_vencimiento_licencia) {
       setError('Debe indicar las fechas de alta y vencimiento de la licencia.');
       return;
     }
 
+    if (new Date(formData.fecha_vencimiento_licencia) <= new Date(formData.fecha_alta_licencia)) {
+      setError('La fecha de vencimiento de la licencia debe ser posterior a la fecha de alta.');
+      return;
+    }
+
     try {
       if (editingId) {
-        await conductorService.update(editingId, formData);
+        await conductorService.update(editingId, { ...formData, numero_documento: dniLimpio });
         setSuccess('Conductor actualizado exitosamente.');
       } else {
-        await conductorService.create(formData);
+        await conductorService.create({ ...formData, numero_documento: dniLimpio });
         setSuccess('Conductor registrado exitosamente.');
       }
       setShowModal(false);
@@ -110,11 +126,32 @@ export default function ConductoresList() {
     }
   };
 
+  // Filtrado reactivo por nombre, apellido o DNI
+  const conductoresFiltrados = conductores.filter((c) => {
+    if (!busqueda.trim()) return true;
+    const term = busqueda.toLowerCase().trim();
+    const nombreCompleto = `${c.nombre} ${c.apellido}`.toLowerCase();
+    const apellidoCompleto = `${c.apellido} ${c.nombre}`.toLowerCase();
+    const dni = (c.numero_documento || '').toString();
+    const licencia = (c.numero_licencia || '').toLowerCase();
+    return (
+      nombreCompleto.includes(term) ||
+      apellidoCompleto.includes(term) ||
+      dni.includes(term) ||
+      licencia.includes(term)
+    );
+  });
+
   return (
     <div className="main-container">
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Gestión de Conductores</h2>
+          <div>
+            <h2 className="card-title">Conductores</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.2rem' }}>
+              Padrón de choferes registrados y licencias habilitadas
+            </p>
+          </div>
           <button className="btn btn-primary" onClick={handleOpenCreate}>
             + Nuevo Conductor
           </button>
@@ -123,10 +160,23 @@ export default function ConductoresList() {
         {error && <div className="alert alert-danger">{error}</div>}
         {success && <div className="alert alert-success">{success}</div>}
 
+        {/* Buscador / Filtro */}
+        <div style={{ marginBottom: '1.25rem' }}>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="🔍 Buscar conductor por nombre, apellido, DNI o número de licencia..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+        </div>
+
         {loading ? (
           <p>Cargando conductores...</p>
-        ) : conductores.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)' }}>No hay conductores registrados.</p>
+        ) : conductoresFiltrados.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)' }}>
+            {busqueda ? 'No se encontraron conductores con ese criterio de búsqueda.' : 'No hay conductores registrados.'}
+          </p>
         ) : (
           <div className="table-responsive">
             <table>
@@ -142,11 +192,11 @@ export default function ConductoresList() {
                 </tr>
               </thead>
               <tbody>
-                {conductores.map((c) => (
+                {conductoresFiltrados.map((c) => (
                   <tr key={c.id}>
                     <td>#{c.id}</td>
                     <td><strong>{c.apellido}, {c.nombre}</strong></td>
-                    <td>{c.numero_documento}</td>
+                    <td><span className="badge badge-neutral">{c.numero_documento}</span></td>
                     <td><span className="badge badge-info">{c.numero_licencia}</span></td>
                     <td>{c.fecha_alta_licencia ? c.fecha_alta_licencia.split('T')[0] : '-'}</td>
                     <td>{c.fecha_vencimiento_licencia ? c.fecha_vencimiento_licencia.split('T')[0] : '-'}</td>
@@ -199,13 +249,20 @@ export default function ConductoresList() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Número de Documento (DNI) *</label>
+                  <label>DNI (solo números, 7 a 8 dígitos) *</label>
                   <input
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]{7,8}"
+                    maxLength="8"
                     className="form-control"
                     placeholder="Ej. 38445123"
                     value={formData.numero_documento}
-                    onChange={(e) => setFormData({ ...formData, numero_documento: e.target.value })}
+                    onChange={(e) => {
+                      // Solo permitir números positivos
+                      const soloNumeros = e.target.value.replace(/\D/g, '');
+                      setFormData({ ...formData, numero_documento: soloNumeros });
+                    }}
                     required
                   />
                 </div>
@@ -247,7 +304,7 @@ export default function ConductoresList() {
                   Cancelar
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  {editingId ? 'Guardar Cambios' : 'Registrar'}
+                  {editingId ? 'Guardar Cambios' : 'Registrar Conductor'}
                 </button>
               </div>
             </form>

@@ -41,7 +41,7 @@ const vehiculoValidation = [
     .isLength({ min: 6, max: 15 }).withMessage('La patente debe tener entre 6 y 15 caracteres.'),
   body('anio')
     .notEmpty().withMessage('El anio es obligatorio.')
-    .isInt({ min: 1900, max: 2100 }).withMessage('El anio debe ser un numero valido entre 1900 y 2100.'),
+    .isInt({ min: 1950, max: 2030 }).withMessage('El anio debe ser un numero positivo entre 1950 y 2030.'),
   body('capacidad_carga')
     .notEmpty().withMessage('La capacidad de carga es obligatoria.')
     .isFloat({ min: 0.01 }).withMessage('La capacidad de carga debe ser un numero positivo mayor a 0.')
@@ -59,7 +59,7 @@ const conductorValidation = [
   body('numero_documento')
     .trim()
     .notEmpty().withMessage('El numero de documento es obligatorio.')
-    .isLength({ min: 6, max: 20 }).withMessage('El numero de documento debe tener entre 6 y 20 caracteres.'),
+    .matches(/^[0-9]{7,8}$/).withMessage('El numero de documento debe tener exactamente 7 u 8 digitos numericos positivos.'),
   body('numero_licencia')
     .trim()
     .notEmpty().withMessage('El numero de licencia es obligatorio.')
@@ -95,7 +95,7 @@ const viajeValidation = [
     .isLength({ max: 150 }).withMessage('El destino no puede superar los 150 caracteres.'),
   body('kilometros')
     .notEmpty().withMessage('Los kilometros son obligatorios.')
-    .isFloat({ min: 0.1 }).withMessage('Los kilometros deben ser un numero mayor a 0.'),
+    .isFloat({ min: 0.1 }).withMessage('Los kilometros deben ser un numero positivo mayor a 0.'),
   body('observaciones')
     .optional({ nullable: true })
     .trim()

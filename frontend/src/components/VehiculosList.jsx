@@ -7,6 +7,9 @@ export default function VehiculosList() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Filtro de búsqueda
+  const [busqueda, setBusqueda] = useState('');
+
   // Modal / Form state
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -78,26 +81,44 @@ export default function VehiculosList() {
     e.preventDefault();
     setError('');
 
-    // Validaciones de frontend
-    if (!formData.marca.trim() || !formData.modelo.trim() || !formData.patente.trim()) {
-      setError('Marca, modelo y patente son campos obligatorios.');
+    // Validaciones estrictas
+    if (!formData.marca.trim() || !formData.modelo.trim()) {
+      setError('Marca y modelo son obligatorios.');
       return;
     }
-    if (!formData.anio || Number(formData.anio) < 1900 || Number(formData.anio) > 2100) {
-      setError('Por favor ingresá un año válido.');
+
+    const patenteLimpia = formData.patente.trim().toUpperCase();
+    if (!patenteLimpia || patenteLimpia.length < 6) {
+      setError('La patente debe tener al menos 6 caracteres válidos.');
       return;
     }
-    if (!formData.capacidad_carga || Number(formData.capacidad_carga) <= 0) {
-      setError('La capacidad de carga debe ser mayor a 0 kg.');
+
+    const anioNum = Number(formData.anio);
+    if (!anioNum || anioNum < 1950 || anioNum > 2030) {
+      setError('El año debe ser un número positivo entre 1950 y 2030.');
+      return;
+    }
+
+    const capacidadNum = Number(formData.capacidad_carga);
+    if (isNaN(capacidadNum) || capacidadNum <= 0) {
+      setError('La capacidad de carga debe ser un número positivo mayor a 0 kg (no se permiten números negativos).');
       return;
     }
 
     try {
+      const payload = {
+        marca: formData.marca.trim(),
+        modelo: formData.modelo.trim(),
+        patente: patenteLimpia,
+        anio: anioNum,
+        capacidad_carga: capacidadNum
+      };
+
       if (editingId) {
-        await vehiculoService.update(editingId, formData);
+        await vehiculoService.update(editingId, payload);
         setSuccess('Vehículo actualizado exitosamente.');
       } else {
-        await vehiculoService.create(formData);
+        await vehiculoService.create(payload);
         setSuccess('Vehículo registrado exitosamente.');
       }
       setShowModal(false);
@@ -107,11 +128,26 @@ export default function VehiculosList() {
     }
   };
 
+  // Filtro reactivo por marca, modelo o patente
+  const vehiculosFiltrados = vehiculos.filter((v) => {
+    if (!busqueda.trim()) return true;
+    const term = busqueda.toLowerCase().trim();
+    const marca = (v.marca || '').toLowerCase();
+    const modelo = (v.modelo || '').toLowerCase();
+    const patente = (v.patente || '').toLowerCase();
+    return marca.includes(term) || modelo.includes(term) || patente.includes(term);
+  });
+
   return (
     <div className="main-container">
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Gestión de Vehículos</h2>
+          <div>
+            <h2 className="card-title">Vehículos</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.2rem' }}>
+              Gestión de flota pesada, furgones y utilitarios
+            </p>
+          </div>
           <button className="btn btn-primary" onClick={handleOpenCreate}>
             + Nuevo Vehículo
           </button>
@@ -120,10 +156,23 @@ export default function VehiculosList() {
         {error && <div className="alert alert-danger">{error}</div>}
         {success && <div className="alert alert-success">{success}</div>}
 
+        {/* Buscador / Filtro */}
+        <div style={{ marginBottom: '1.25rem' }}>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="🔍 Buscar por marca, modelo o patente..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+        </div>
+
         {loading ? (
           <p>Cargando vehículos...</p>
-        ) : vehiculos.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)' }}>No hay vehículos registrados en la base de datos.</p>
+        ) : vehiculosFiltrados.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)' }}>
+            {busqueda ? 'No se encontraron vehículos para esa búsqueda.' : 'No hay vehículos registrados.'}
+          </p>
         ) : (
           <div className="table-responsive">
             <table>
@@ -134,12 +183,12 @@ export default function VehiculosList() {
                   <th>Modelo</th>
                   <th>Patente</th>
                   <th>Año</th>
-                  <th>Capacidad (kg)</th>
+                  <th>Capacidad</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {vehiculos.map((v) => (
+                {vehiculosFiltrados.map((v) => (
                   <tr key={v.id}>
                     <td>#{v.id}</td>
                     <td><strong>{v.marca}</strong></td>
@@ -210,6 +259,8 @@ export default function VehiculosList() {
                   <label>Año *</label>
                   <input
                     type="number"
+                    min="1950"
+                    max="2030"
                     className="form-control"
                     placeholder="2023"
                     value={formData.anio}
@@ -218,14 +269,20 @@ export default function VehiculosList() {
                   />
                 </div>
                 <div className="form-group full-width">
-                  <label>Capacidad de Carga (kg) *</label>
+                  <label>Capacidad de Carga (kg) * (número positivo)</label>
                   <input
                     type="number"
                     step="0.01"
+                    min="0.01"
                     className="form-control"
                     placeholder="Ej. 18000.5"
                     value={formData.capacidad_carga}
-                    onChange={(e) => setFormData({ ...formData, capacidad_carga: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      // Evitar que ingrese negativos directamente
+                      if (Number(val) < 0) return;
+                      setFormData({ ...formData, capacidad_carga: val });
+                    }}
                     required
                   />
                 </div>
