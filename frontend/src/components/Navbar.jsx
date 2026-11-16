@@ -6,7 +6,7 @@ export default function Navbar({ usuario, onLogout, activeTab, onSelectTab }) {
       <div className="navbar">
         <div className="navbar-brand">
           <span>🚚</span>
-          <span>TransPorte IV - Gestión de Flota</span>
+          <span>Ruta Clara</span>
         </div>
         <div className="navbar-user">
           {usuario ? (
@@ -29,7 +29,7 @@ export default function Navbar({ usuario, onLogout, activeTab, onSelectTab }) {
           className={`tab-btn ${activeTab === 'inicio' ? 'active' : ''}`}
           onClick={() => onSelectTab('inicio')}
         >
-          Inicio Público
+          Inicio
         </button>
         {usuario && (
           <>
