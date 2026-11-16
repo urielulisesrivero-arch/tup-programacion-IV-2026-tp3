@@ -22,6 +22,7 @@ tup-programacion-IV-2026-tp3/
 │   │   ├── routes/           # Rutas expuestas por la API REST
 │   │   ├── validators/       # Esquemas de validación exhaustivos con express-validator
 │   │   └── app.js            # Punto de entrada de la aplicación Express
+│   ├── tests/                # Pruebas de integración con Supertest (npm test)
 │   ├── .env.example          # Plantilla de variables de entorno
 │   ├── api.http              # Archivo HTTP para pruebas directas de endpoints (REST Client)
 │   ├── database.sql          # Script DDL con la creación de tablas y relaciones
@@ -120,6 +121,19 @@ Dentro de `backend/api.http` contás con todas las peticiones preparadas para pr
 - Registro de Viajes vinculando un vehículo y un conductor
 - Consultas de historial por vehículo y por conductor
 - Estadísticas y sumatoria de kilómetros totales
+
+---
+
+## ✅ Pruebas Automatizadas
+El backend incluye una suite de pruebas de integración con **Supertest** que recorre los flujos principales de la API: registro y login, rutas protegidas con JWT, CRUD de vehículos y conductores, registro de viajes, historial y cálculo de kilómetros totales, además de los casos de validación y de error (400, 401 y 404).
+
+Para ejecutarlas:
+```bash
+cd backend
+npm test
+```
+
+Las pruebas crean una base de datos temporal (`tp3_transporte_test`), ejecutan el script `database.sql` sobre ella y la eliminan al finalizar. **No modifican los datos de la base `tp3_transporte`**, por lo que se pueden correr sin riesgo en cualquier momento.
 
 ---
 
