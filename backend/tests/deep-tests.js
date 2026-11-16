@@ -252,6 +252,22 @@ async function ejecutarPruebas(app, pool) {
     assert.ok(res.body.some((v) => v.id === vehiculoId));
   });
 
+  await test('GET /api/vehiculos?marca= filtra el listado', async () => {
+    const res = await request(app)
+      .get('/api/vehiculos?marca=Volvo')
+      .set('Authorization', `Bearer ${token}`);
+    assertEstado(res, 200, 'filtrar vehiculos:');
+    assert.ok(res.body.some((v) => v.id === vehiculoId));
+    assert.ok(res.body.every((v) => v.marca.toLowerCase().includes('volvo')));
+  });
+
+  await test('GET /api/vehiculos valida el filtro marca', async () => {
+    const res = await request(app)
+      .get(`/api/vehiculos?marca=${'x'.repeat(120)}`)
+      .set('Authorization', `Bearer ${token}`);
+    assertEstado(res, 400, 'filtro marca invalido:');
+  });
+
   await test('GET /api/vehiculos/:id devuelve el vehiculo creado', async () => {
     const res = await request(app)
       .get(`/api/vehiculos/${vehiculoId}`)
@@ -349,6 +365,15 @@ async function ejecutarPruebas(app, pool) {
     const res = await request(app).get('/api/conductores').set('Authorization', `Bearer ${token}`);
     assertEstado(res, 200, 'listar conductores:');
     assert.ok(res.body.some((c) => c.id === conductorId));
+  });
+
+  await test('GET /api/conductores?apellido= filtra el listado', async () => {
+    const res = await request(app)
+      .get('/api/conductores?apellido=Perez')
+      .set('Authorization', `Bearer ${token}`);
+    assertEstado(res, 200, 'filtrar conductores:');
+    assert.ok(res.body.some((c) => c.id === conductorId));
+    assert.ok(res.body.every((c) => c.apellido.toLowerCase().includes('perez')));
   });
 
   await test('GET /api/conductores/:id devuelve el conductor creado', async () => {
@@ -454,6 +479,29 @@ async function ejecutarPruebas(app, pool) {
         kilometros: 100
       });
     assertEstado(res, 400, 'origen invalido:');
+  });
+
+  await test('POST /api/viajes rechaza una fecha de llegada anterior a la salida', async () => {
+    const res = await request(app)
+      .post('/api/viajes')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        vehiculo_id: vehiculoId,
+        conductor_id: conductorId,
+        fecha_salida: '2026-03-02 08:00:00',
+        fecha_llegada: '2026-03-01 08:00:00',
+        origen: 'La Rioja',
+        destino: 'Cordoba',
+        kilometros: 100
+      });
+    assertEstado(res, 400, 'llegada anterior:');
+  });
+
+  await test('GET /api/viajes valida el filtro vehiculo_id', async () => {
+    const res = await request(app)
+      .get('/api/viajes?vehiculo_id=abc')
+      .set('Authorization', `Bearer ${token}`);
+    assertEstado(res, 400, 'filtro invalido:');
   });
 
   await test('GET /api/viajes lista los viajes con datos relacionados', async () => {

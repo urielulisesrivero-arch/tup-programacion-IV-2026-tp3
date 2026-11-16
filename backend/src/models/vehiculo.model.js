@@ -1,8 +1,21 @@
 const pool = require('../config/db');
 
 const VehiculoModel = {
-  async getAll() {
-    const [rows] = await pool.query('SELECT * FROM vehiculos ORDER BY id DESC');
+  async getAll({ marca, patente } = {}) {
+    const condiciones = [];
+    const params = [];
+
+    if (marca) {
+      condiciones.push('marca LIKE ?');
+      params.push(`%${marca}%`);
+    }
+    if (patente) {
+      condiciones.push('patente LIKE ?');
+      params.push(`%${patente}%`);
+    }
+
+    const where = condiciones.length > 0 ? `WHERE ${condiciones.join(' AND ')}` : '';
+    const [rows] = await pool.query(`SELECT * FROM vehiculos ${where} ORDER BY id DESC`, params);
     return rows;
   },
 

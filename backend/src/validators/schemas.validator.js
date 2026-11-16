@@ -91,7 +91,14 @@ const viajeValidation = [
     .isISO8601().withMessage('La fecha de salida debe tener formato valido ISO 8601 / YYYY-MM-DD HH:MM:SS.'),
   body('fecha_llegada')
     .optional({ nullable: true, checkFalsy: true })
-    .isISO8601().withMessage('La fecha de llegada debe tener formato valido ISO 8601.'),
+    .isISO8601().withMessage('La fecha de llegada debe tener formato valido ISO 8601.')
+    .custom((valor, { req }) => {
+      const salida = req.body.fecha_salida;
+      if (salida && new Date(valor) < new Date(salida)) {
+        throw new Error('La fecha de llegada no puede ser anterior a la fecha de salida.');
+      }
+      return true;
+    }),
   body('origen')
     .trim()
     .notEmpty().withMessage('El origen es obligatorio.')
@@ -140,6 +147,39 @@ const conductorIdParamValidation = [
     .isInt({ min: 1 }).withMessage('El ID del conductor debe ser un numero entero positivo.')
 ];
 
+// Filtros opcionales del listado de viajes (?vehiculo_id= y ?conductor_id=)
+const viajeFiltrosQueryValidation = [
+  query('vehiculo_id')
+    .optional({ checkFalsy: true })
+    .isInt({ min: 1 }).withMessage('El filtro vehiculo_id debe ser un numero entero positivo.'),
+  query('conductor_id')
+    .optional({ checkFalsy: true })
+    .isInt({ min: 1 }).withMessage('El filtro conductor_id debe ser un numero entero positivo.')
+];
+
+// Filtros opcionales de los listados de vehiculos y conductores
+const vehiculoFiltrosQueryValidation = [
+  query('marca')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 100 }).withMessage('El filtro marca no puede superar los 100 caracteres.'),
+  query('patente')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 15 }).withMessage('El filtro patente no puede superar los 15 caracteres.')
+];
+
+const conductorFiltrosQueryValidation = [
+  query('apellido')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 100 }).withMessage('El filtro apellido no puede superar los 100 caracteres.'),
+  query('documento')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 20 }).withMessage('El filtro documento no puede superar los 20 caracteres.')
+];
+
 module.exports = {
   registerValidation,
   loginValidation,
@@ -148,5 +188,8 @@ module.exports = {
   viajeValidation,
   idParamValidation,
   vehiculoIdParamValidation,
-  conductorIdParamValidation
+  conductorIdParamValidation,
+  viajeFiltrosQueryValidation,
+  vehiculoFiltrosQueryValidation,
+  conductorFiltrosQueryValidation
 };

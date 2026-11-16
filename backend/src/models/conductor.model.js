@@ -1,8 +1,21 @@
 const pool = require('../config/db');
 
 const ConductorModel = {
-  async getAll() {
-    const [rows] = await pool.query('SELECT * FROM conductores ORDER BY id DESC');
+  async getAll({ apellido, documento } = {}) {
+    const condiciones = [];
+    const params = [];
+
+    if (apellido) {
+      condiciones.push('apellido LIKE ?');
+      params.push(`%${apellido}%`);
+    }
+    if (documento) {
+      condiciones.push('numero_documento LIKE ?');
+      params.push(`%${documento}%`);
+    }
+
+    const where = condiciones.length > 0 ? `WHERE ${condiciones.join(' AND ')}` : '';
+    const [rows] = await pool.query(`SELECT * FROM conductores ${where} ORDER BY id DESC`, params);
     return rows;
   },
 

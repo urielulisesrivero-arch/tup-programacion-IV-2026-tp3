@@ -181,3 +181,15 @@ Authorization: Bearer {{authToken}}
 ### 21. Calculo total de kilometros por conductor y vehiculo
 GET {{baseUrl}}/viajes/totales-kilometros
 Authorization: Bearer {{authToken}}
+
+### 22. Filtrar vehiculos por marca o patente (parametros opcionales)
+GET {{baseUrl}}/vehiculos?marca=Mercedes&patente=AE
+Authorization: Bearer {{authToken}}
+
+### 23. Filtrar conductores por apellido o documento (parametros opcionales)
+GET {{baseUrl}}/conductores?apellido=Gomez&documento=3456
+Authorization: Bearer {{authToken}}
+
+### 24. Filtrar viajes por vehiculo o conductor (parametros opcionales)
+GET {{baseUrl}}/viajes?vehiculo_id=1&conductor_id=1
+Authorization: Bearer {{authToken}}

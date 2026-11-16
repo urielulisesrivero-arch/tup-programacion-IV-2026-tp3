@@ -1,7 +1,20 @@
 const pool = require('../config/db');
 
 const ViajeModel = {
-  async getAll() {
+  async getAll({ vehiculo_id, conductor_id } = {}) {
+    const condiciones = [];
+    const params = [];
+
+    if (vehiculo_id) {
+      condiciones.push('v.vehiculo_id = ?');
+      params.push(vehiculo_id);
+    }
+    if (conductor_id) {
+      condiciones.push('v.conductor_id = ?');
+      params.push(conductor_id);
+    }
+
+    const where = condiciones.length > 0 ? `WHERE ${condiciones.join(' AND ')}` : '';
     const query = `
       SELECT 
         v.id, v.vehiculo_id, v.conductor_id,
@@ -11,9 +24,10 @@ const ViajeModel = {
       FROM viajes v
       INNER JOIN vehiculos veh ON v.vehiculo_id = veh.id
       INNER JOIN conductores c ON v.conductor_id = c.id
+      ${where}
       ORDER BY v.fecha_salida DESC
     `;
-    const [rows] = await pool.query(query);
+    const [rows] = await pool.query(query, params);
     return rows;
   },
 

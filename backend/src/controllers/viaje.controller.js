@@ -6,15 +6,7 @@ const ViajeController = {
   async getAll(req, res) {
     try {
       const { vehiculo_id, conductor_id } = req.query;
-      let viajes;
-
-      if (vehiculo_id) {
-        viajes = await ViajeModel.getByVehiculo(vehiculo_id);
-      } else if (conductor_id) {
-        viajes = await ViajeModel.getByConductor(conductor_id);
-      } else {
-        viajes = await ViajeModel.getAll();
-      }
+      const viajes = await ViajeModel.getAll({ vehiculo_id, conductor_id });
 
       return res.status(200).json(viajes);
     } catch (error) {

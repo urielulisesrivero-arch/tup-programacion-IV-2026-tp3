@@ -3,7 +3,8 @@ const VehiculoModel = require('../models/vehiculo.model');
 const VehiculoController = {
   async getAll(req, res) {
     try {
-      const vehiculos = await VehiculoModel.getAll();
+      const { marca, patente } = req.query;
+      const vehiculos = await VehiculoModel.getAll({ marca, patente });
       return res.status(200).json(vehiculos);
     } catch (error) {
       console.error('Error al obtener vehiculos:', error);

@@ -6,7 +6,8 @@ const {
   viajeValidation,
   idParamValidation,
   vehiculoIdParamValidation,
-  conductorIdParamValidation
+  conductorIdParamValidation,
+  viajeFiltrosQueryValidation
 } = require('../validators/schemas.validator');
 const { handleValidationErrors } = require('../middlewares/validator.middleware');
 
@@ -21,7 +22,7 @@ router.get('/historial/vehiculo/:vehiculo_id', vehiculoIdParamValidation, handle
 router.get('/historial/conductor/:conductor_id', conductorIdParamValidation, handleValidationErrors, ViajeController.getHistorialByConductor);
 
 // CRUD general
-router.get('/', ViajeController.getAll);
+router.get('/', viajeFiltrosQueryValidation, handleValidationErrors, ViajeController.getAll);
 router.get('/:id', idParamValidation, handleValidationErrors, ViajeController.getById);
 router.post('/', viajeValidation, handleValidationErrors, ViajeController.create);
 router.put('/:id', idParamValidation, viajeValidation, handleValidationErrors, ViajeController.update);

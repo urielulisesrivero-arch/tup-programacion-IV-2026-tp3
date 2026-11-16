@@ -3,7 +3,8 @@ const ConductorModel = require('../models/conductor.model');
 const ConductorController = {
   async getAll(req, res) {
     try {
-      const conductores = await ConductorModel.getAll();
+      const { apellido, documento } = req.query;
+      const conductores = await ConductorModel.getAll({ apellido, documento });
       return res.status(200).json(conductores);
     } catch (error) {
       console.error('Error al obtener conductores:', error);
